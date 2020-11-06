@@ -14,71 +14,58 @@ import PromiseKit
 import RealmSwift
 
 
-class ViewController: UIViewController, CLLocationManagerDelegate, UITableViewDelegate, UITableViewDataSource {
+class ViewController: UIViewController{
    
     
     
-    @IBOutlet weak var txtLat: UILabel!
-    @IBOutlet weak var txtLng: UILabel!
     @IBOutlet weak var txtCityName: UILabel!
     @IBOutlet weak var txtCurrentTemp: UILabel!
     @IBOutlet weak var txtForecast: UILabel!
     @IBOutlet weak var txtMax: UILabel!
     @IBOutlet weak var txtMin: UILabel!
     
+    @IBOutlet weak var weatherImg: UIImageView!
+    
+    
     
     @IBOutlet weak var tblView: UITableView!
     
     var arr = [CityInformation]()
     
-    
     let locationManager = CLLocationManager()
     
     var lat : CLLocationDegrees?
     var lng : CLLocationDegrees?
+
+    
+    
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
         locationManager.delegate = self
         locationManager.requestWhenInUseAuthorization()
-        //locationManager.requestLocation()
+        locationManager.requestLocation()
         
         tblView.delegate = self
         tblView.dataSource = self
+        
+        
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
         loadCitiesFromDB()
-        
-        
     }
     
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        
-        if let currLocation = locations.last {
-            lat = currLocation.coordinate.latitude
-            lng = currLocation.coordinate.longitude
-            txtLat.text = "\(lat!)"
-            txtLng.text = "\(lng!)"
-            print(lat!)
-            print(lng!)
-        }
-        
-    }
-    
-    
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("Error in getting Location : \(error)")
-    }
-    
-    
-  
     
     func getURLCurrentLocation(_ lat : CLLocationDegrees, _ lng: CLLocationDegrees) -> String{
         var url = geoPositionURL
         url.append("apikey=\(apiKey)&q=\(lat),\(lng)")
         return url
     }
+
     
-    @IBAction func getWeather(_ sender: Any) {
-        
+    func updateCurrentWeather(){
         guard let latitude = lat, let longitude = lng else { return }
 
         let url = getURLCurrentLocation(latitude, longitude)
@@ -90,6 +77,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate, UITableViewDe
             self.getOneHourForecast(for: key).done { (temp, forecast)  in
                 self.txtCurrentTemp.text = "Current Temp: \(temp)"
                 self.txtForecast.text = "Forecast: \(forecast)"
+                self.weatherImg.image = self.getWeatherIcon(forecast)
 
             }
             .catch { (error) in
@@ -110,7 +98,6 @@ class ViewController: UIViewController, CLLocationManagerDelegate, UITableViewDe
         .catch { (error) in
             print(error)
         }
-
     }
     
     // This returns (MinTemp, MaxTemp)
@@ -195,35 +182,15 @@ class ViewController: UIViewController, CLLocationManagerDelegate, UITableViewDe
     
     
     
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return arr.count
-    }
     
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
-        cell.textLabel?.text = "\(arr[indexPath.row].name), \(arr[indexPath.row].adminArea), \(arr[indexPath.row].country)"
-
-        return cell
-
-    }
-    
-    
-    @IBAction func addCity(_ sender: Any) {
-        
-        let alert = UIAlertController(title: "Please Type name of the city", message: "", preferredStyle: .alert)
-        
-        let OK = UIAlertAction(title: "OK", style: .default) { (action) in
-            print("OK Pressed")
-        }
-        
-        let cancel = UIAlertAction(title: "Cancel", style: .cancel) { (action) in
-            print("Cancel")
-        }
-        
-        
-    }
     
     func loadCitiesFromDB(){
+        arr.removeAll()
+        
+        let city = CityInformation("-1", "Current", "US", "")
+        arr.append(city)
+        
+        
         do{
             let realm = try Realm()
             let cities = realm.objects(CityInformation.self)
@@ -239,14 +206,82 @@ class ViewController: UIViewController, CLLocationManagerDelegate, UITableViewDe
         }
     }
     
+    func getWeatherIcon(_ forecast: String) -> UIImage{
+        let img = UIImage(named: "01-s")!
+                
+        let dayTime = isDay()
+        
+        if dayTime {
+            guard let dayImage = dayIcons[forecast] else {
+                return img
+                
+            }
+            return dayImage
+        }
+        
+        guard let nightImage = nightIcons[forecast] else { return img }
+        return nightImage
+    }
+    
+    
+    
+    
+}
+
+extension ViewController : CLLocationManagerDelegate {
+   
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        
+        if let currLocation = locations.last {
+            lat = currLocation.coordinate.latitude
+            lng = currLocation.coordinate.longitude
+            updateCurrentWeather()
+        }
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("Error in getting Location : \(error)")
+    }
+}
+
+
+
+
+extension ViewController: UITableViewDelegate, UITableViewDataSource {
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return arr.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
+        
+        if indexPath.row == 0 {
+            cell.textLabel?.text = "Current Location"
+        }else{
+            cell.textLabel?.text = "\(arr[indexPath.row].name), \(arr[indexPath.row].adminArea), \(arr[indexPath.row].country)"
+        }
+
+        return cell
+
+    }
+
+    
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let city = arr[indexPath.row]
+        
+        if indexPath.row == 0 {
+            updateCurrentWeather()
+            return
+        }
+        
         
         self.txtCityName.text = "City: \(city.name)"
         // Gdet One Hour forecast
         self.getOneHourForecast(for: city.key).done { (temp, forecast)  in
             self.txtCurrentTemp.text = "Current Temp: \(temp)"
             self.txtForecast.text = "Forecast: \(forecast)"
+            self.weatherImg.image = self.getWeatherIcon(forecast)
 
         }
         .catch { (error) in
@@ -264,10 +299,5 @@ class ViewController: UIViewController, CLLocationManagerDelegate, UITableViewDe
         }
         
     }
-    
-    
-    
-
-
 }
 
