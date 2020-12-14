@@ -2,23 +2,19 @@
 //  WeatherIcons.swift
 //  NEUWeather
 //
-//  Created by Ashisish on 11/6/20.
+//  Created by Maheshwara Reddy on 12/3/20.
 //
 
 import Foundation
 import UIKit
 
-
 func isDay() -> Bool {
-    
     let hour = Calendar.current.component(.hour, from: Date())
-    
     if hour >= 6 && hour <= 18 {
         return true
     }
     return false
 }
-
 
 let dayIcons : [ String: UIImage] = [
     "Sunny": UIImage(named: "01-s")!,
@@ -49,7 +45,6 @@ let dayIcons : [ String: UIImage] = [
     "Hot": UIImage(named: "30-s")!,
     "Cold": UIImage(named: "31-s")!,
     "Windy": UIImage(named: "32-s")!,
-    
 ]
 
 
@@ -81,7 +76,4 @@ let nightIcons: [String: UIImage] = [
     "Mostly Cloudy w/ T-Storms": UIImage(named: "42-s")!,
     "Mostly Cloudy w/ Flurries": UIImage(named: "43-s")!,
     "Mostly Cloudy w/ Flurries": UIImage(named: "44-s")!
-
-
-
 ]
